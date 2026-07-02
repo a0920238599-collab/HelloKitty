@@ -26,7 +26,7 @@ export const TaskAssignments: React.FC = () => {
         .select(`
           *,
           product:products (erp_sku, ozon_sku, judgment_status),
-          assignee:profiles (username)
+          assignee:profiles!task_assignments_assigned_user_id_fkey (username)
         `, { count: 'exact' })
         .order('claimed_at', { ascending: false })
         .range(from, to);

@@ -10,6 +10,13 @@ const PORT = 3000;
 
 app.use(express.json());
 
+// Log incoming requests for Vercel debugging
+app.use((req, res, next) => {
+  console.log(`[Vercel Serverless] ${req.method} ${req.url}`);
+  console.log(`[Vercel Serverless] Headers - Auth: ${req.headers.authorization ? "Present" : "Missing"}`);
+  next();
+});
+
 // Initialize Supabase admin client
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -22,6 +29,9 @@ if (supabaseUrl && supabaseServiceKey) {
       persistSession: false
     }
   });
+  console.log("[Supabase Admin] Successfully initialized client");
+} else {
+  console.log(`[Supabase Admin] Failed to initialize: URL is ${supabaseUrl ? "Present" : "Missing"}, Service Key is ${supabaseServiceKey ? "Present" : "Missing"}`);
 }
 
 // Middleware to verify admin status
