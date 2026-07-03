@@ -171,7 +171,7 @@ export const FollowSaleProducts: React.FC = () => {
         }
         const { data, error } = await supabase.rpc('claim_follow_sale_products', {
           p_user_id: user.id,
-          p_limit: amountToClaim
+          p_quantity: amountToClaim
         });
         if (error) throw error;
         claimedAmount = data;
