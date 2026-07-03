@@ -333,7 +333,15 @@ app.post("/api/claim-products", async (req, res) => {
 
     const availableQuota = totalYesCount - totalClaimedCount;
 
-    let claimAmount = Math.min(availableQuota, dailyClaimLimit - claimedTodayCount);
+    let maxClaimAmount = Math.min(availableQuota, dailyClaimLimit - claimedTodayCount);
+    let claimAmount = maxClaimAmount;
+
+    if (req.body && req.body.quantity) {
+      const requestedQuantity = parseInt(req.body.quantity, 10);
+      if (!isNaN(requestedQuantity) && requestedQuantity > 0) {
+        claimAmount = Math.min(requestedQuantity, maxClaimAmount);
+      }
+    }
 
     if (claimAmount <= 0) {
       return res.status(400).json({ error: "今日可领取额度已耗尽，或没有可用额度。" });

@@ -23,6 +23,7 @@ export const FollowSaleProducts: React.FC = () => {
 
   // Status
   const [status, setStatus] = useState<any>(null);
+  const [claimQuantity, setClaimQuantity] = useState<number | ''>('');
 
   useEffect(() => {
     fetchProducts();
@@ -140,9 +141,14 @@ export const FollowSaleProducts: React.FC = () => {
       let apiSuccess = false;
 
       try {
+        const bodyPayload = claimQuantity ? { quantity: Number(claimQuantity) } : {};
         const res = await fetch('/api/claim-products', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${session.access_token}` }
+          headers: { 
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(bodyPayload)
         });
         const data = await res.json();
         
@@ -155,7 +161,11 @@ export const FollowSaleProducts: React.FC = () => {
       } catch (apiError) {
         console.warn('API fetch failed, falling back to client RPC', apiError);
         // Fallback: calculate claimAmount
-        const amountToClaim = Math.min(status.availableQuota, status.dailyClaimLimit - status.claimedToday);
+        let maxClaim = Math.min(status.availableQuota, status.dailyClaimLimit - status.claimedToday);
+        let amountToClaim = maxClaim;
+        if (claimQuantity) {
+          amountToClaim = Math.min(Number(claimQuantity), maxClaim);
+        }
         if (amountToClaim <= 0) {
            throw new Error('今日可领取额度已耗尽，或没有可用额度。');
         }
@@ -258,6 +268,19 @@ export const FollowSaleProducts: React.FC = () => {
               </>
             )}
           </button>
+          <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-md shadow-sm border border-gray-200">
+             <span className="text-sm text-gray-500">数量:</span>
+             <input 
+               type="number"
+               min="1"
+               max={status ? Math.min(status.availableQuota, status.dailyClaimLimit - status.claimedToday) : ""}
+               placeholder="不填则全领"
+               className="text-sm border-none focus:ring-0 p-0 w-24 text-center"
+               value={claimQuantity}
+               onChange={(e) => setClaimQuantity(e.target.value === '' ? '' : Number(e.target.value))}
+               disabled={!canClaim}
+             />
+          </div>
           <button
             onClick={handleClaim}
             disabled={claiming || !canClaim}
