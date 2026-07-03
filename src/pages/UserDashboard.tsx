@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
-import { DownloadCloud, CheckCircle, Gift, Download } from 'lucide-react';
+import { DownloadCloud, CheckCircle, Gift, Download, Info } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export const UserDashboard: React.FC = () => {
-  const { profile } = useAuth();
+  const { profile, session } = useAuth();
   
   const [stats, setStats] = useState({
     pending: 0,
@@ -13,11 +13,33 @@ export const UserDashboard: React.FC = () => {
     followSale: 0
   });
 
+  const [claimStatus, setClaimStatus] = useState<any>(null);
+
   useEffect(() => {
     if (profile) {
       fetchStats();
     }
   }, [profile]);
+
+  useEffect(() => {
+    if (session) {
+      fetchClaimStatus();
+    }
+  }, [session]);
+
+  const fetchClaimStatus = async () => {
+    try {
+      const res = await fetch('/api/claim-status', {
+        headers: { Authorization: `Bearer ${session?.access_token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setClaimStatus(data);
+      }
+    } catch (e) {
+      console.error('Fetch claim status failed', e);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -59,6 +81,30 @@ export const UserDashboard: React.FC = () => {
           <p className="mt-1 max-w-2xl text-sm text-gray-500">这里是您的个人工作台概览</p>
         </div>
       </div>
+
+      {claimStatus && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-start">
+            <Info className="w-5 h-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
+            <div>
+              <h3 className="text-sm font-medium text-blue-800">当前跟卖产品领取状态</h3>
+              <p className="mt-1 text-sm text-blue-700">
+                每提交一个“是”的判断可获得 1 个额度。每日最多可提取 <span className="font-bold">{claimStatus.dailyClaimLimit}</span> 个。
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <div className="bg-white px-4 py-2 rounded shadow-sm border border-blue-100 text-center min-w-[100px]">
+              <div className="text-xs text-gray-500">可领取额度</div>
+              <div className="text-xl font-bold text-blue-600">{claimStatus.availableQuota}</div>
+            </div>
+            <div className="bg-white px-4 py-2 rounded shadow-sm border border-blue-100 text-center min-w-[100px]">
+              <div className="text-xs text-gray-500">今日已领</div>
+              <div className="text-xl font-bold text-gray-700">{claimStatus.claimedToday} / {claimStatus.dailyClaimLimit}</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Link to="/user/get-tasks" className="block bg-white shadow rounded-lg p-6 hover:shadow-md transition">
