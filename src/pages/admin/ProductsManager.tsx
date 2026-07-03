@@ -202,10 +202,10 @@ export const ProductsManager: React.FC = () => {
     fetchProducts();
   };
   
-  const handleExportAll = async () => {
+  const handleExport = async () => {
     setExporting(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('products')
         .select(`
           erp_sku,
@@ -219,6 +219,16 @@ export const ProductsManager: React.FC = () => {
           judged_profile:profiles!products_judged_by_fkey(username)
         `)
         .order('created_at', { ascending: false });
+
+      if (activeTab !== 'all') {
+        query = query.eq('judgment_status', activeTab);
+      }
+      
+      if (searchTerm) {
+        query = query.or(`erp_sku.ilike.%${searchTerm}%,ozon_sku.ilike.%${searchTerm}%`);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       
@@ -237,7 +247,8 @@ export const ProductsManager: React.FC = () => {
       const ws = XLSX.utils.json_to_sheet(formattedData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Products');
-      XLSX.writeFile(wb, `公共产品库_${new Date().toISOString().split('T')[0]}.xlsx`);
+      const tabName = activeTab === 'all' ? '全部' : activeTab === 'unjudged' ? '未判断' : activeTab === 'yes' ? '判定为是' : '判定为否';
+      XLSX.writeFile(wb, `公共产品库_${tabName}_${new Date().toISOString().split('T')[0]}.xlsx`);
     } catch (err: any) {
       alert('导出失败: ' + err.message);
     } finally {
@@ -303,7 +314,7 @@ export const ProductsManager: React.FC = () => {
             onChange={handleFileUpload}
           />
           <button
-            onClick={handleExportAll}
+            onClick={handleExport}
             disabled={exporting}
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
           >

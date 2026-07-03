@@ -333,14 +333,10 @@ app.post("/api/claim-products", async (req, res) => {
 
     const availableQuota = totalYesCount - totalClaimedCount;
 
-    if (availableQuota < minClaimThreshold) {
-      return res.status(400).json({ error: `可领取额度不足，未达到最小领取门槛 (${minClaimThreshold})。` });
-    }
-
     let claimAmount = Math.min(availableQuota, dailyClaimLimit - claimedTodayCount);
 
     if (claimAmount <= 0) {
-      return res.status(400).json({ error: "今日可领取额度已耗尽。" });
+      return res.status(400).json({ error: "今日可领取额度已耗尽，或没有可用额度。" });
     }
 
     // Call RPC to claim products

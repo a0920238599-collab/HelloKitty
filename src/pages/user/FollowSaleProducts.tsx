@@ -158,7 +158,7 @@ export const FollowSaleProducts: React.FC = () => {
     }
   };
 
-  const canClaim = status && status.availableQuota >= status.minClaimThreshold && status.claimedToday < status.dailyClaimLimit;
+  const canClaim = status && status.availableQuota > 0 && status.claimedToday < status.dailyClaimLimit;
 
   return (
     <div className="space-y-6">
@@ -215,7 +215,7 @@ export const FollowSaleProducts: React.FC = () => {
             <div>
               <h3 className="text-sm font-medium text-blue-800">领取状态</h3>
               <p className="mt-1 text-sm text-blue-700">
-                每提交一个“是”的判断可获得 1 个额度。满 <span className="font-bold">{status.minClaimThreshold}</span> 额度可提取。
+                每提交一个“是”的判断可获得 1 个额度。
                 每日最多提取 <span className="font-bold">{status.dailyClaimLimit}</span> 个。
               </p>
             </div>
