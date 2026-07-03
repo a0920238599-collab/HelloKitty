@@ -17,23 +17,6 @@ export const AdminDashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Link
-          to="/admin/users"
-          className="bg-white overflow-hidden shadow rounded-lg border hover:border-blue-500 transition-colors"
-        >
-          <div className="p-5 flex items-center">
-            <div className="flex-shrink-0 bg-blue-100 rounded-md p-3">
-              <Users className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="ml-5 w-0 flex-1">
-              <dl>
-                <dt className="text-sm font-medium text-gray-500 truncate">账号管理</dt>
-                <dd className="mt-1 text-lg font-semibold text-gray-900">用户列表、权限</dd>
-              </dl>
-            </div>
-          </div>
-        </Link>
-
-        <Link
           to="/admin/products"
           className="bg-white overflow-hidden shadow rounded-lg border hover:border-green-500 transition-colors"
         >

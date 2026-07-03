@@ -76,8 +76,8 @@ export const SystemSettings: React.FC = () => {
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">每日判断“是”的门槛数量</label>
-            <p className="text-sm text-gray-500 mb-1">用户必须在当天提交达到该数量的“是”结果，才能解锁领取跟卖产品。</p>
+            <label className="block text-sm font-medium text-gray-700">最小领取门槛</label>
+            <p className="text-sm text-gray-500 mb-1">用户可领取额度必须达到此数量才允许领取跟卖产品。</p>
             <input
               type="number"
               min="1"
@@ -88,24 +88,11 @@ export const SystemSettings: React.FC = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700">每日最大领取批次</label>
-            <p className="text-sm text-gray-500 mb-1">用户每天最多可以点击领取的次数。</p>
+            <label className="block text-sm font-medium text-gray-700">每日最大领取额度</label>
+            <p className="text-sm text-gray-500 mb-1">用户每天最多可以领取的跟卖产品总数。</p>
             <input
               type="number"
               min="1"
-              value={batchLimit}
-              onChange={e => setBatchLimit(parseInt(e.target.value) || 0)}
-              className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md py-2 px-3 border"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700">每批次最大领取数量</label>
-            <p className="text-sm text-gray-500 mb-1">每次领取跟卖产品的最大个数。</p>
-            <input
-              type="number"
-              min="1"
-              max="500"
               value={qtyPerBatch}
               onChange={e => setQtyPerBatch(parseInt(e.target.value) || 0)}
               className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md py-2 px-3 border"

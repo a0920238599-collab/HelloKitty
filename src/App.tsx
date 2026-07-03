@@ -6,7 +6,6 @@ import { Login } from './pages/Login';
 import { ChangePassword } from './pages/ChangePassword';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { UserDashboard } from './pages/UserDashboard';
-import { UserManagement } from './pages/UserManagement';
 import { ProductsManager } from './pages/admin/ProductsManager';
 import { TaskAssignments } from './pages/admin/TaskAssignments';
 import { SystemSettings } from './pages/admin/SystemSettings';
@@ -67,7 +66,6 @@ export default function App() {
             
             {/* Admin Routes */}
             <Route path="admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-            <Route path="admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
             <Route path="admin/products" element={<AdminRoute><ProductsManager /></AdminRoute>} />
             <Route path="admin/tasks" element={<AdminRoute><TaskAssignments /></AdminRoute>} />
             <Route path="admin/settings" element={<AdminRoute><SystemSettings /></AdminRoute>} />

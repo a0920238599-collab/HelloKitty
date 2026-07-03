@@ -230,6 +230,133 @@ app.get("/api/audit_logs", requireAdmin, async (req, res) => {
   res.json(data);
 });
 
+// Get user claim status
+app.get("/api/claim-status", async (req, res) => {
+  if (!supabaseAdmin) return res.status(500).json({ error: "Supabase not initialized" });
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: "No authorization header" });
+  const token = authHeader.replace("Bearer ", "");
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+
+  try {
+    const { data: settingsData } = await supabaseAdmin
+      .from("system_settings")
+      .select("setting_value")
+      .eq("setting_key", "follow_sale_rules")
+      .single();
+    
+    const settings = settingsData?.setting_value || {};
+    const minClaimThreshold = settings.daily_yes_threshold || 100;
+    const dailyClaimLimit = settings.quantity_per_batch || 100;
+
+    const { count: totalYes } = await supabaseAdmin
+      .from("task_assignments")
+      .select("id", { count: "exact" })
+      .eq("assigned_user_id", user.id)
+      .eq("judgment_status", "yes");
+
+    const { count: totalClaimed } = await supabaseAdmin
+      .from("user_product_library")
+      .select("id", { count: "exact" })
+      .eq("user_id", user.id);
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const { count: claimedToday } = await supabaseAdmin
+      .from("user_product_library")
+      .select("id", { count: "exact" })
+      .eq("user_id", user.id)
+      .gte("received_at", today.toISOString());
+
+    const totalYesCount = totalYes || 0;
+    const totalClaimedCount = totalClaimed || 0;
+    const claimedTodayCount = claimedToday || 0;
+
+    const availableQuota = Math.max(0, totalYesCount - totalClaimedCount);
+    
+    res.json({
+      totalYes: totalYesCount,
+      totalClaimed: totalClaimedCount,
+      claimedToday: claimedTodayCount,
+      availableQuota,
+      minClaimThreshold,
+      dailyClaimLimit
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Claim follow sale products
+app.post("/api/claim-products", async (req, res) => {
+  if (!supabaseAdmin) return res.status(500).json({ error: "Supabase not initialized" });
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: "No authorization header" });
+  const token = authHeader.replace("Bearer ", "");
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+
+  try {
+    const { data: settingsData } = await supabaseAdmin
+      .from("system_settings")
+      .select("setting_value")
+      .eq("setting_key", "follow_sale_rules")
+      .single();
+    
+    const settings = settingsData?.setting_value || {};
+    const minClaimThreshold = settings.daily_yes_threshold || 100;
+    const dailyClaimLimit = settings.quantity_per_batch || 100;
+
+    const { count: totalYes } = await supabaseAdmin
+      .from("task_assignments")
+      .select("id", { count: "exact" })
+      .eq("assigned_user_id", user.id)
+      .eq("judgment_status", "yes");
+
+    const { count: totalClaimed } = await supabaseAdmin
+      .from("user_product_library")
+      .select("id", { count: "exact" })
+      .eq("user_id", user.id);
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const { count: claimedToday } = await supabaseAdmin
+      .from("user_product_library")
+      .select("id", { count: "exact" })
+      .eq("user_id", user.id)
+      .gte("received_at", today.toISOString());
+
+    const totalYesCount = totalYes || 0;
+    const totalClaimedCount = totalClaimed || 0;
+    const claimedTodayCount = claimedToday || 0;
+
+    const availableQuota = totalYesCount - totalClaimedCount;
+
+    if (availableQuota < minClaimThreshold) {
+      return res.status(400).json({ error: `可领取额度不足，未达到最小领取门槛 (${minClaimThreshold})。` });
+    }
+
+    let claimAmount = Math.min(availableQuota, dailyClaimLimit - claimedTodayCount);
+
+    if (claimAmount <= 0) {
+      return res.status(400).json({ error: "今日可领取额度已耗尽。" });
+    }
+
+    // Call RPC to claim products
+    const { data, error } = await supabaseAdmin.rpc("claim_follow_sale_products", {
+      p_user_id: user.id,
+      p_quantity: claimAmount
+    });
+
+    if (error) throw error;
+    
+    res.json({ claimedAmount: data });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

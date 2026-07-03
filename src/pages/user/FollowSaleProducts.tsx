@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { UserProductLibrary } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
-import { Gift, Download, Search } from 'lucide-react';
+import { Gift, Download, Search, Info } from 'lucide-react';
 import { Pagination } from '../../components/Pagination';
 import * as XLSX from 'xlsx';
 
@@ -21,30 +21,32 @@ export const FollowSaleProducts: React.FC = () => {
   const [pageSize, setPageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
 
-  // Settings
-  const [qtyPerBatch, setQtyPerBatch] = useState(100);
+  // Status
+  const [status, setStatus] = useState<any>(null);
 
   useEffect(() => {
     fetchProducts();
   }, [currentPage, pageSize, startDate, endDate]);
 
   useEffect(() => {
-    fetchSettings();
-  }, []);
+    if (user) {
+      fetchStatus();
+    }
+  }, [user]);
 
-  const fetchSettings = async () => {
+  const fetchStatus = async () => {
     try {
-      const { data } = await supabase
-        .from('system_settings')
-        .select('setting_value')
-        .eq('setting_key', 'follow_sale_rules')
-        .single();
-        
-      if (data?.setting_value?.quantity_per_batch) {
-        setQtyPerBatch(data.setting_value.quantity_per_batch);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch('/api/claim-status', {
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStatus(data);
       }
     } catch (e) {
-      // Ignore
+      console.error(e);
     }
   };
 
@@ -88,21 +90,28 @@ export const FollowSaleProducts: React.FC = () => {
     setMessage(null);
 
     try {
-      const { data, error } = await supabase.rpc('claim_follow_sale_products', {
-        p_user_id: user.id,
-        p_quantity: qtyPerBatch
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Unauthenticated");
+
+      const res = await fetch('/api/claim-products', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` }
       });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || '领取失败');
+      }
 
-      if (error) throw error;
-
-      if (data === 0) {
+      if (data.claimedAmount === 0) {
         setMessage({ type: 'error', text: '当前没有符合条件的跟卖产品可供领取，或您已领取过所有符合条件的产品。' });
       } else {
-        setMessage({ type: 'success', text: `成功领取了 ${data} 个跟卖产品！` });
+        setMessage({ type: 'success', text: `成功领取了 ${data.claimedAmount} 个跟卖产品！` });
         fetchProducts();
+        fetchStatus();
       }
     } catch (error: any) {
-      setMessage({ type: 'error', text: '领取失败: ' + error.message });
+      setMessage({ type: 'error', text: error.message });
     } finally {
       setClaiming(false);
     }
@@ -149,6 +158,8 @@ export const FollowSaleProducts: React.FC = () => {
     }
   };
 
+  const canClaim = status && status.availableQuota >= status.minClaimThreshold && status.claimedToday < status.dailyClaimLimit;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -184,18 +195,43 @@ export const FollowSaleProducts: React.FC = () => {
           </button>
           <button
             onClick={handleClaim}
-            disabled={claiming}
+            disabled={claiming || !canClaim}
             className="inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
           >
           {claiming ? '领取中...' : (
             <>
               <Gift className="w-4 h-4 mr-2" />
-              领取今日跟卖产品
+              领取跟卖产品
             </>
           )}
         </button>
       </div>
       </div>
+
+      {status && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start">
+            <Info className="w-5 h-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
+            <div>
+              <h3 className="text-sm font-medium text-blue-800">领取状态</h3>
+              <p className="mt-1 text-sm text-blue-700">
+                每提交一个“是”的判断可获得 1 个额度。满 <span className="font-bold">{status.minClaimThreshold}</span> 额度可提取。
+                每日最多提取 <span className="font-bold">{status.dailyClaimLimit}</span> 个。
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <div className="bg-white px-4 py-2 rounded shadow-sm border border-blue-100 text-center min-w-[100px]">
+              <div className="text-xs text-gray-500">可领取额度</div>
+              <div className="text-xl font-bold text-blue-600">{status.availableQuota}</div>
+            </div>
+            <div className="bg-white px-4 py-2 rounded shadow-sm border border-blue-100 text-center min-w-[100px]">
+              <div className="text-xs text-gray-500">今日已领</div>
+              <div className="text-xl font-bold text-gray-700">{status.claimedToday} / {status.dailyClaimLimit}</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {message && (
         <div className={`p-4 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
@@ -240,7 +276,7 @@ export const FollowSaleProducts: React.FC = () => {
         )}
         {products.length === 0 && !loading && (
           <div className="text-center py-10 text-gray-500">
-            您还没有领取跟卖产品。如果今天已完成目标判断数量，可以点击右上角按钮领取。
+            您还没有领取跟卖产品。
           </div>
         )}
         {products.length > 0 && !loading && (
