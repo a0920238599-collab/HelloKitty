@@ -44,9 +44,52 @@ export const FollowSaleProducts: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         setStatus(data);
+      } else {
+        await fetchStatusFallback();
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Fetch claim status API failed, using fallback', e);
+      await fetchStatusFallback();
+    }
+  };
+
+  const fetchStatusFallback = async () => {
+    if (!user) return;
+    try {
+      const { count: totalYes } = await supabase
+        .from("task_assignments")
+        .select("id", { count: "exact", head: true })
+        .eq("assigned_user_id", user.id)
+        .eq("judgment_result", "yes");
+
+      const { count: totalClaimed } = await supabase
+        .from("user_product_library")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id);
+
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const { count: claimedToday } = await supabase
+        .from("user_product_library")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("received_at", today.toISOString());
+
+      const totalYesCount = totalYes || 0;
+      const totalClaimedCount = totalClaimed || 0;
+      const claimedTodayCount = claimedToday || 0;
+      const availableQuota = Math.max(0, totalYesCount - totalClaimedCount);
+
+      setStatus({
+        totalYes: totalYesCount,
+        totalClaimed: totalClaimedCount,
+        claimedToday: claimedTodayCount,
+        availableQuota,
+        minClaimThreshold: 100,
+        dailyClaimLimit: 100
+      });
+    } catch (err) {
+      console.error('Fallback fetch failed', err);
     }
   };
 
@@ -93,20 +136,42 @@ export const FollowSaleProducts: React.FC = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Unauthenticated");
 
-      const res = await fetch('/api/claim-products', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}` }
-      });
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.error || '领取失败');
+      let claimedAmount = 0;
+      let apiSuccess = false;
+
+      try {
+        const res = await fetch('/api/claim-products', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}` }
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+          apiSuccess = true;
+          claimedAmount = data.claimedAmount;
+        } else {
+          throw new Error(data.error || '领取失败');
+        }
+      } catch (apiError) {
+        console.warn('API fetch failed, falling back to client RPC', apiError);
+        // Fallback: calculate claimAmount
+        const amountToClaim = Math.min(status.availableQuota, status.dailyClaimLimit - status.claimedToday);
+        if (amountToClaim <= 0) {
+           throw new Error('今日可领取额度已耗尽，或没有可用额度。');
+        }
+        const { data, error } = await supabase.rpc('claim_follow_sale_products', {
+          p_user_id: user.id,
+          p_limit: amountToClaim
+        });
+        if (error) throw error;
+        claimedAmount = data;
+        apiSuccess = true;
       }
 
-      if (data.claimedAmount === 0) {
+      if (claimedAmount === 0) {
         setMessage({ type: 'error', text: '当前没有符合条件的跟卖产品可供领取，或您已领取过所有符合条件的产品。' });
       } else {
-        setMessage({ type: 'success', text: `成功领取了 ${data.claimedAmount} 个跟卖产品！` });
+        setMessage({ type: 'success', text: `成功领取了 ${claimedAmount} 个跟卖产品！` });
         fetchProducts();
         fetchStatus();
       }

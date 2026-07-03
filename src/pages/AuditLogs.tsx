@@ -14,14 +14,31 @@ export const AuditLogs: React.FC = () => {
         const { data: session } = await supabase.auth.getSession();
         const token = session.session?.access_token;
         
-        const res = await fetch('/api/audit_logs', {
-          headers: {
-            'Authorization': `Bearer ${token}`
+        let apiSuccess = false;
+        try {
+          const res = await fetch('/api/audit_logs', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setLogs(data);
+            apiSuccess = true;
           }
-        });
-        if (!res.ok) throw new Error('Failed to fetch audit logs');
-        const data = await res.json();
-        setLogs(data);
+        } catch (apiErr) {
+          console.warn('API fetch failed, falling back to client', apiErr);
+        }
+
+        if (!apiSuccess) {
+          const { data, error } = await supabase
+            .from('audit_logs')
+            .select('*, operator:profiles(username)')
+            .order('created_at', { ascending: false })
+            .limit(500);
+          if (error) throw error;
+          setLogs(data || []);
+        }
       } catch (err) {
         console.error(err);
       } finally {
