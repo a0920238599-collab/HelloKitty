@@ -38,7 +38,7 @@ export const ProductsManager: React.FC = () => {
           *,
           judged_profile:profiles!products_judged_by_fkey(username)
         `, { count: 'exact' })
-        .order('created_at', { ascending: false });
+        .order('updated_at', { ascending: false });
         
       if (activeTab !== 'all') {
         query = query.eq('judgment_status', activeTab);
@@ -218,7 +218,7 @@ export const ProductsManager: React.FC = () => {
           judged_at,
           judged_profile:profiles!products_judged_by_fkey(username)
         `)
-        .order('created_at', { ascending: false });
+        .order('updated_at', { ascending: false });
 
       if (activeTab !== 'all') {
         query = query.eq('judgment_status', activeTab);

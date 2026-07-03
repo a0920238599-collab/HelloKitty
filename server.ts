@@ -254,7 +254,7 @@ app.get("/api/claim-status", async (req, res) => {
       .from("task_assignments")
       .select("id", { count: "exact" })
       .eq("assigned_user_id", user.id)
-      .eq("judgment_status", "yes");
+      .eq("judgment_result", "yes");
 
     const { count: totalClaimed } = await supabaseAdmin
       .from("user_product_library")
@@ -312,7 +312,7 @@ app.post("/api/claim-products", async (req, res) => {
       .from("task_assignments")
       .select("id", { count: "exact" })
       .eq("assigned_user_id", user.id)
-      .eq("judgment_status", "yes");
+      .eq("judgment_result", "yes");
 
     const { count: totalClaimed } = await supabaseAdmin
       .from("user_product_library")
