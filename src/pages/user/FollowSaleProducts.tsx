@@ -57,6 +57,20 @@ export const FollowSaleProducts: React.FC = () => {
         .eq("user_id", user.id)
         .gte("received_at", today.toISOString());
 
+      let minClaimThreshold = 100;
+      let dailyClaimLimit = 100;
+      try {
+        const { data: settingsData, error: settingsError } = await supabase
+          .from("system_settings")
+          .select("setting_value")
+          .eq("setting_key", "follow_sale_rules")
+          .single();
+        if (!settingsError && settingsData?.setting_value) {
+          minClaimThreshold = settingsData.setting_value.daily_yes_threshold || 100;
+          dailyClaimLimit = settingsData.setting_value.quantity_per_batch || 100;
+        }
+      } catch (e) {}
+
       const totalYesCount = totalYes || 0;
       const totalClaimedCount = totalClaimed || 0;
       const claimedTodayCount = claimedToday || 0;
@@ -67,8 +81,8 @@ export const FollowSaleProducts: React.FC = () => {
         totalClaimed: totalClaimedCount,
         claimedToday: claimedTodayCount,
         availableQuota,
-        minClaimThreshold: 100,
-        dailyClaimLimit: 100
+        minClaimThreshold,
+        dailyClaimLimit
       });
     } catch (error) {
       console.error("Fallback error", error);
