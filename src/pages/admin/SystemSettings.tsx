@@ -9,7 +9,7 @@ export const SystemSettings: React.FC = () => {
   
   // Follow sale rules
   const [threshold, setThreshold] = useState(100);
-  const [batchLimit, setBatchLimit] = useState(1);
+  
   const [qtyPerBatch, setQtyPerBatch] = useState(100);
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export const SystemSettings: React.FC = () => {
       setSettings(data);
       if (data?.setting_value) {
         setThreshold(data.setting_value.daily_yes_threshold || 100);
-        setBatchLimit(data.setting_value.daily_batch_limit || 1);
+        
         setQtyPerBatch(data.setting_value.quantity_per_batch || 100);
       }
     } catch (error: any) {
@@ -46,7 +46,6 @@ export const SystemSettings: React.FC = () => {
     
     const newValue = {
       daily_yes_threshold: threshold,
-      daily_batch_limit: batchLimit,
       quantity_per_batch: qtyPerBatch
     };
 

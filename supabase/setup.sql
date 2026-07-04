@@ -189,16 +189,16 @@ DECLARE
   v_product_id UUID;
   v_batch_id UUID;
   v_daily_yes_count INTEGER;
-  v_daily_batch_count INTEGER;
+  
   v_threshold INTEGER;
-  v_batch_limit INTEGER;
+  
   v_max_qty INTEGER;
   v_rules JSONB;
 BEGIN
   -- 1. 获取规则
   SELECT setting_value INTO v_rules FROM public.system_settings WHERE setting_key = 'follow_sale_rules';
   v_threshold := COALESCE((v_rules->>'daily_yes_threshold')::INTEGER, 100);
-  v_batch_limit := COALESCE((v_rules->>'daily_batch_limit')::INTEGER, 1);
+   
   v_max_qty := COALESCE((v_rules->>'quantity_per_batch')::INTEGER, 100);
 
   IF p_quantity > v_max_qty THEN
@@ -217,15 +217,6 @@ BEGIN
     RAISE EXCEPTION '当天判断为"是"的数量未达到要求 (%)', v_threshold;
   END IF;
 
-  -- 3. 检查当天领取批次
-  SELECT COUNT(*) INTO v_daily_batch_count
-  FROM public.follow_sale_export_batches
-  WHERE user_id = p_user_id
-    AND created_at >= (NOW() AT TIME ZONE 'Asia/Shanghai')::DATE;
-
-  IF v_daily_batch_count >= v_batch_limit THEN
-    RAISE EXCEPTION '当天领取跟卖批次已达上限 (%)', v_batch_limit;
-  END IF;
 
   -- 4. 创建批次记录
   INSERT INTO public.follow_sale_export_batches (user_id, eligible_yes_count, requested_quantity, granted_quantity)

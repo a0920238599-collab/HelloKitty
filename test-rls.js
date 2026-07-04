@@ -1,13 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 dotenv.config();
-
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-
+const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 async function run() {
-  const { data, error } = await supabaseAdmin.from('system_settings').select('*');
-  console.log("Settings:", data, error);
+  const { data } = await supabase.rpc('exec_sql', { sql_string: 'SELECT policyname FROM pg_policies WHERE tablename = \'system_settings\'' });
+  console.log(data);
 }
 run();

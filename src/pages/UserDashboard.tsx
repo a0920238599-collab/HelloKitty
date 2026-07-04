@@ -62,9 +62,9 @@ export const UserDashboard: React.FC = () => {
           .single();
         if (!settingsError && settingsData?.setting_value) {
           minClaimThreshold = settingsData.setting_value.daily_yes_threshold || 100;
-          const dailyBatchLimit = settingsData.setting_value.daily_batch_limit || 1;
-          const qtyPerBatch = settingsData.setting_value.quantity_per_batch || 100;
-          dailyClaimLimit = dailyBatchLimit * qtyPerBatch;
+           
+           
+          dailyClaimLimit = settingsData.setting_value.quantity_per_batch || 100;
         }
       } catch (e) {}
 
