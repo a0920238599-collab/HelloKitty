@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Users, Database, ShieldAlert, ListChecks, Settings } from 'lucide-react';
+import { Users, Database, ShieldAlert, ListChecks, Settings, BarChart3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const AdminDashboard: React.FC = () => {
@@ -45,6 +45,23 @@ export const AdminDashboard: React.FC = () => {
               <dl>
                 <dt className="text-sm font-medium text-gray-500 truncate">任务概览</dt>
                 <dd className="mt-1 text-lg font-semibold text-gray-900">查看分配记录</dd>
+              </dl>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          to="/admin/user-stats"
+          className="bg-white overflow-hidden shadow rounded-lg border hover:border-blue-500 transition-colors"
+        >
+          <div className="p-5 flex items-center">
+            <div className="flex-shrink-0 bg-blue-100 rounded-md p-3">
+              <BarChart3 className="h-6 w-6 text-blue-600" />
+            </div>
+            <div className="ml-5 w-0 flex-1">
+              <dl>
+                <dt className="text-sm font-medium text-gray-500 truncate">用户统计</dt>
+                <dd className="mt-1 text-lg font-semibold text-gray-900">查看判断数据</dd>
               </dl>
             </div>
           </div>

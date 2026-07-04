@@ -239,6 +239,40 @@ app.get("/api/audit_logs", requireAdmin, async (req, res) => {
   res.json(data);
 });
 
+// Get User Judgment Stats (Admin only)
+app.get("/api/user-stats", requireAdmin, async (req, res) => {
+  try {
+    const { data: users, error: usersError } = await supabaseAdmin!.from('profiles').select('id, username').eq('role', 'user');
+    if (usersError) throw usersError;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const { data: tasks, error: tasksError } = await supabaseAdmin!.from('task_assignments')
+      .select('assigned_user_id, submitted_at')
+      .eq('status', 'submitted');
+    if (tasksError) throw tasksError;
+      
+    const stats = (users || []).map(u => {
+      const userTasks = (tasks || []).filter(t => t.assigned_user_id === u.id);
+      const todayTasks = userTasks.filter(t => new Date(t.submitted_at) >= today);
+      return {
+        user_id: u.id,
+        username: u.username,
+        total_count: userTasks.length,
+        today_count: todayTasks.length
+      };
+    });
+    
+    // Sort by total_count descending
+    stats.sort((a, b) => b.total_count - a.total_count);
+
+    res.json(stats);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get user claim status
 app.get("/api/claim-status", async (req, res) => {
   console.log("HIT /api/claim-status");
@@ -295,6 +329,34 @@ app.get("/api/claim-status", async (req, res) => {
       minClaimThreshold,
       dailyClaimLimit
     });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get claim multipliers for products
+app.post("/api/claim-multipliers", async (req, res) => {
+  if (!supabaseAdmin) return res.status(500).json({ error: "Supabase not initialized" });
+  try {
+    const { items } = req.body;
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({ error: "Invalid items" });
+    }
+    
+    const multipliers: Record<string, number> = {};
+    for (const item of items) {
+      if (!item.id || !item.product_id || !item.received_at) continue;
+      
+      const { count } = await supabaseAdmin
+        .from('user_product_library')
+        .select('id', { count: 'exact', head: true })
+        .eq('product_id', item.product_id)
+        .lte('received_at', item.received_at);
+        
+      multipliers[item.id] = Math.pow(1.01, count || 1);
+    }
+    
+    res.json(multipliers);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

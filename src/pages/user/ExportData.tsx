@@ -36,8 +36,9 @@ export const ExportData: React.FC = () => {
       const { data, error } = await supabase
         .from('user_product_library')
         .select(`
+          id,
           received_at,
-          product:products (erp_sku, erp_image_url, ozon_sku, ozon_image_url, usd_price)
+          product:products (id, erp_sku, erp_image_url, ozon_sku, ozon_image_url, usd_price)
         `)
         .order('received_at', { ascending: false });
 
@@ -47,13 +48,42 @@ export const ExportData: React.FC = () => {
         alert('没有跟卖产品可供导出');
         return;
       }
+      
+      let finalData = data;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const apiItems = finalData.map(d => ({
+            id: d.id,
+            product_id: (d.product as any)?.id,
+            received_at: d.received_at
+          }));
+          const res = await fetch('/api/claim-multipliers', {
+            method: 'POST',
+            headers: { 
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ items: apiItems })
+          });
+          if (res.ok) {
+            const multipliers = await res.json();
+            finalData = finalData.map(item => ({
+              ...item,
+              multiplier: multipliers[item.id] || 1
+            }));
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch multipliers', e);
+      }
 
-      const formattedData = data.map(item => ({
+      const formattedData = finalData.map(item => ({
         'ERP SKU': item.product?.erp_sku,
         'ERP 图片链接': item.product?.erp_image_url,
         'Ozon SKU': item.product?.ozon_sku,
         'Ozon 图片链接': item.product?.ozon_image_url,
-        '美元价格': item.product?.usd_price,
+        '美元价格': ((item.product?.usd_price || 0) * ((item as any).multiplier || 1)).toFixed(2),
         '产品来源类型': '跟卖文件',
         '领取时间': format(new Date(item.received_at), 'yyyy-MM-dd HH:mm:ss')
       }));
@@ -84,11 +114,43 @@ export const ExportData: React.FC = () => {
       const { data: followSales, error: fsError } = await supabase
         .from('user_product_library')
         .select(`
+          id,
           received_at,
-          product:products (erp_sku, erp_image_url, ozon_sku, ozon_image_url, usd_price)
+          product:products (id, erp_sku, erp_image_url, ozon_sku, ozon_image_url, usd_price)
         `);
 
       if (fsError) throw fsError;
+
+      let finalFsData = followSales || [];
+      if (finalFsData.length > 0) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            const apiItems = finalFsData.map(d => ({
+              id: d.id,
+              product_id: (d.product as any)?.id,
+              received_at: d.received_at
+            }));
+            const res = await fetch('/api/claim-multipliers', {
+              method: 'POST',
+              headers: { 
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ items: apiItems })
+            });
+            if (res.ok) {
+              const multipliers = await res.json();
+              finalFsData = finalFsData.map(item => ({
+                ...item,
+                multiplier: multipliers[item.id] || 1
+              }));
+            }
+          }
+        } catch (e) {
+          console.error('Failed to fetch multipliers', e);
+        }
+      }
 
       const formattedTasks = (tasks || []).map(item => ({
         'ERP SKU': item.product?.erp_sku,
@@ -103,12 +165,12 @@ export const ExportData: React.FC = () => {
         '当前状态': item.status === 'submitted' ? '已提交' : item.status === 'draft' ? '草稿' : '已领取未判断'
       }));
 
-      const formattedFollowSales = (followSales || []).map(item => ({
+      const formattedFollowSales = finalFsData.map(item => ({
         'ERP SKU': item.product?.erp_sku,
         'ERP 图片链接': item.product?.erp_image_url,
         'Ozon SKU': item.product?.ozon_sku,
         'Ozon 图片链接': item.product?.ozon_image_url,
-        '美元价格': item.product?.usd_price,
+        '美元价格': ((item.product?.usd_price || 0) * ((item as any).multiplier || 1)).toFixed(2),
         '产品来源类型': '跟卖产品',
         '领取时间': format(new Date(item.received_at), 'yyyy-MM-dd HH:mm:ss'),
         '判断结果': '',

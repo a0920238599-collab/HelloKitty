@@ -5,6 +5,7 @@ import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { ChangePassword } from './pages/ChangePassword';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { UserJudgmentsStats } from './pages/admin/UserJudgmentsStats';
 import { UserDashboard } from './pages/UserDashboard';
 import { ProductsManager } from './pages/admin/ProductsManager';
 import { TaskAssignments } from './pages/admin/TaskAssignments';
@@ -70,6 +71,7 @@ export default function App() {
             <Route path="admin/tasks" element={<AdminRoute><TaskAssignments /></AdminRoute>} />
             <Route path="admin/settings" element={<AdminRoute><SystemSettings /></AdminRoute>} />
             <Route path="admin/audit-logs" element={<AdminRoute><AuditLogs /></AdminRoute>} />
+            <Route path="admin/user-stats" element={<AdminRoute><UserJudgmentsStats /></AdminRoute>} />
             
             {/* User Route */}
             <Route path="user" element={<UserDashboard />} />

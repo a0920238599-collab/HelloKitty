@@ -136,7 +136,33 @@ export const FollowSaleProducts: React.FC = () => {
         .range(from, to);
 
       if (error) throw error;
-      setProducts(data || []);
+      let finalData = data || [];
+      if (finalData.length > 0) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            const res = await fetch('/api/claim-multipliers', {
+              method: 'POST',
+              headers: { 
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ items: finalData })
+            });
+            if (res.ok) {
+              const multipliers = await res.json();
+              finalData = finalData.map(item => ({
+                ...item,
+                multiplier: multipliers[item.id] || 1
+              }));
+            }
+          }
+        } catch (e) {
+          console.error('Failed to fetch multipliers', e);
+        }
+      }
+
+      setProducts(finalData);
       setTotalCount(count || 0);
     } catch (error: any) {
       alert('获取记录失败: ' + error.message);
@@ -230,12 +256,38 @@ export const FollowSaleProducts: React.FC = () => {
 
       if (error) throw error;
       
-      const formattedData = (data || []).map(item => ({
+      let finalData = data || [];
+      if (finalData.length > 0) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            const res = await fetch('/api/claim-multipliers', {
+              method: 'POST',
+              headers: { 
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ items: finalData })
+            });
+            if (res.ok) {
+              const multipliers = await res.json();
+              finalData = finalData.map(item => ({
+                ...item,
+                multiplier: multipliers[item.id] || 1
+              }));
+            }
+          }
+        } catch (e) {
+          console.error('Failed to fetch multipliers', e);
+        }
+      }
+      
+      const formattedData = finalData.map(item => ({
         'ERP SKU': item.product?.erp_sku,
         'ERP 图片链接': item.product?.erp_image_url,
         'Ozon SKU': item.product?.ozon_sku,
         'Ozon 图片链接': item.product?.ozon_image_url,
-        '价格 (USD)': item.product?.usd_price,
+        '价格 (USD)': ((item.product?.usd_price || 0) * (item.multiplier || 1)).toFixed(2),
         '领取时间': new Date(item.received_at).toLocaleString('zh-CN')
       }));
 
@@ -370,7 +422,7 @@ export const FollowSaleProducts: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.product?.erp_sku}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.product?.ozon_sku}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${item.product?.usd_price?.toFixed(2)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${((item.product?.usd_price || 0) * ((item as any).multiplier || 1)).toFixed(2)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {new Date(item.received_at).toLocaleString('zh-CN')}
                   </td>
