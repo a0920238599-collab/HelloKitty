@@ -258,7 +258,9 @@ app.get("/api/claim-status", async (req, res) => {
     
     const settings = settingsData?.setting_value || {};
     const minClaimThreshold = settings.daily_yes_threshold || 100;
-    const dailyClaimLimit = settings.quantity_per_batch || 100;
+    const dailyBatchLimit = settings.daily_batch_limit || 1;
+    const qtyPerBatch = settings.quantity_per_batch || 100;
+    const dailyClaimLimit = dailyBatchLimit * qtyPerBatch;
 
     const { count: totalYes } = await supabaseAdmin
       .from("task_assignments")
@@ -316,7 +318,9 @@ app.post("/api/claim-products", async (req, res) => {
     
     const settings = settingsData?.setting_value || {};
     const minClaimThreshold = settings.daily_yes_threshold || 100;
-    const dailyClaimLimit = settings.quantity_per_batch || 100;
+    const dailyBatchLimit = settings.daily_batch_limit || 1;
+    const qtyPerBatch = settings.quantity_per_batch || 100;
+    const dailyClaimLimit = dailyBatchLimit * qtyPerBatch;
 
     const { count: totalYes } = await supabaseAdmin
       .from("task_assignments")

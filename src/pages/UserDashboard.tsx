@@ -62,7 +62,9 @@ export const UserDashboard: React.FC = () => {
           .single();
         if (!settingsError && settingsData?.setting_value) {
           minClaimThreshold = settingsData.setting_value.daily_yes_threshold || 100;
-          dailyClaimLimit = settingsData.setting_value.quantity_per_batch || 100;
+          const dailyBatchLimit = settingsData.setting_value.daily_batch_limit || 1;
+          const qtyPerBatch = settingsData.setting_value.quantity_per_batch || 100;
+          dailyClaimLimit = dailyBatchLimit * qtyPerBatch;
         }
       } catch (e) {}
 
@@ -150,7 +152,7 @@ export const UserDashboard: React.FC = () => {
             <div>
               <h3 className="text-sm font-medium text-blue-800">当前跟卖产品领取状态</h3>
               <p className="mt-1 text-sm text-blue-700">
-                每提交一个“是”的判断可获得 1 个额度。每日最多可提取 <span className="font-bold">{claimStatus.dailyClaimLimit}</span> 个。
+                每提交一个“是”的判断可获得 1 个额度。当日需至少提交 <span className="font-bold">{claimStatus.minClaimThreshold}</span> 个“是”才可提取。每日最多可提取 <span className="font-bold">{claimStatus.dailyClaimLimit}</span> 个。
               </p>
             </div>
           </div>
