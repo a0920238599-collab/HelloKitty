@@ -242,10 +242,19 @@ app.get("/api/audit_logs", requireAdmin, async (req, res) => {
 // Get User Judgment Stats (Admin only)
 app.get("/api/user-stats", requireAdmin, async (req, res) => {
   try {
+    // Try using the RPC first (which handles timezones and large datasets correctly)
+    const { data: rpcData, error: rpcError } = await supabaseAdmin!.rpc('get_user_judgment_stats');
+    
+    if (!rpcError && rpcData) {
+      return res.json(rpcData);
+    }
+
+    // Fallback to JS calculation if RPC doesn't exist (has 1000 row limit issue)
     const { data: users, error: usersError } = await supabaseAdmin!.from('profiles').select('id, username').eq('role', 'user');
     if (usersError) throw usersError;
     
-    const today = new Date();
+    // Convert to China time (UTC+8) for the fallback
+    const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Shanghai" }));
     today.setHours(0, 0, 0, 0);
 
     const { data: tasks, error: tasksError } = await supabaseAdmin!.from('task_assignments')
