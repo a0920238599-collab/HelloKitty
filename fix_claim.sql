@@ -1,13 +1,3 @@
--- 1. 修复系统设置表的 RLS，允许所有登录用户读取，以保证前端能够拉取到设置
-DROP POLICY IF EXISTS "Allow authenticated users to read system settings" ON public.system_settings;
-
-CREATE POLICY "Allow authenticated users to read system settings" 
-  ON public.system_settings 
-  FOR SELECT 
-  TO authenticated 
-  USING (true);
-
--- 2. 修复领取跟卖产品的 RPC 函数（取消无效的列判断，取消批次限制，直接使用最大额度）
 CREATE OR REPLACE FUNCTION public.claim_follow_sale_products(p_user_id UUID, p_quantity INTEGER)
 RETURNS INTEGER AS $$
 DECLARE
@@ -52,7 +42,7 @@ BEGIN
     FROM public.products p
     WHERE p.judgment_status = 'yes'
       AND NOT EXISTS (
-        SELECT 1 FROM public.user_product_library upl WHERE upl.product_id = p.id AND upl.user_id = p_user_id
+        SELECT 1 FROM public.user_product_library upl WHERE upl.product_id = p.id
       )
     ORDER BY random()
     LIMIT p_quantity
