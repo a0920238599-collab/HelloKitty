@@ -35,6 +35,46 @@ export const FollowSaleProducts: React.FC = () => {
     }
   }, [user]);
 
+  const fetchStatusFallback = async () => {
+    if (!user) return;
+    try {
+      const { count: totalYes } = await supabase
+        .from("task_assignments")
+        .select("id", { count: "exact", head: true })
+        .eq("assigned_user_id", user.id)
+        .eq("judgment_result", "yes");
+
+      const { count: totalClaimed } = await supabase
+        .from("user_product_library")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id);
+
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const { count: claimedToday } = await supabase
+        .from("user_product_library")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("received_at", today.toISOString());
+
+      const totalYesCount = totalYes || 0;
+      const totalClaimedCount = totalClaimed || 0;
+      const claimedTodayCount = claimedToday || 0;
+      const availableQuota = Math.max(0, totalYesCount - totalClaimedCount);
+      
+      setStatus({
+        totalYes: totalYesCount,
+        totalClaimed: totalClaimedCount,
+        claimedToday: claimedTodayCount,
+        availableQuota,
+        minClaimThreshold: 100,
+        dailyClaimLimit: 100
+      });
+    } catch (error) {
+      console.error("Fallback error", error);
+    }
+  };
+
   const fetchStatus = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -46,11 +86,11 @@ export const FollowSaleProducts: React.FC = () => {
         const data = await res.json();
         setStatus(data);
       } else {
-        
+        await fetchStatusFallback();
       }
     } catch (e) {
       console.warn('Fetch claim status API failed, using fallback', e);
-      
+      await fetchStatusFallback();
     }
   };
 
@@ -120,8 +160,23 @@ export const FollowSaleProducts: React.FC = () => {
           throw new Error(data.error || '领取失败');
         }
       } catch (apiError) {
-        console.error("API fetch failed:", apiError); throw apiError;
-        
+        console.warn("API fetch failed, falling back to client RPC:", apiError);
+        // Fallback: calculate claimAmount
+        let maxClaim = Math.min(status.availableQuota, status.dailyClaimLimit - status.claimedToday);
+        let amountToClaim = maxClaim;
+        if (claimQuantity) {
+          amountToClaim = Math.min(Number(claimQuantity), maxClaim);
+        }
+        if (amountToClaim <= 0) {
+           throw new Error('今日可领取额度已耗尽，或没有可用额度。');
+        }
+
+        const { data, error } = await supabase.rpc('claim_follow_sale_products', {
+          p_user_id: user.id,
+          p_quantity: amountToClaim
+        });
+        if (error) throw error;
+        claimedAmount = data;
       }
 
       if (claimedAmount === 0) {

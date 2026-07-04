@@ -27,6 +27,49 @@ export const UserDashboard: React.FC = () => {
     }
   }, [session]);
 
+  const fetchClaimStatusFallback = async () => {
+    if (!session) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { count: totalYes } = await supabase
+        .from("task_assignments")
+        .select("id", { count: "exact", head: true })
+        .eq("assigned_user_id", user.id)
+        .eq("judgment_result", "yes");
+
+      const { count: totalClaimed } = await supabase
+        .from("user_product_library")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id);
+
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const { count: claimedToday } = await supabase
+        .from("user_product_library")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("received_at", today.toISOString());
+
+      const totalYesCount = totalYes || 0;
+      const totalClaimedCount = totalClaimed || 0;
+      const claimedTodayCount = claimedToday || 0;
+      const availableQuota = Math.max(0, totalYesCount - totalClaimedCount);
+      
+      setClaimStatus({
+        totalYes: totalYesCount,
+        totalClaimed: totalClaimedCount,
+        claimedToday: claimedTodayCount,
+        availableQuota,
+        minClaimThreshold: 100,
+        dailyClaimLimit: 100
+      });
+    } catch (error) {
+      console.error("Fallback error", error);
+    }
+  };
+
   const fetchClaimStatus = async () => {
     try {
       const res = await fetch('/api/claim-status', {
@@ -36,11 +79,11 @@ export const UserDashboard: React.FC = () => {
         const data = await res.json();
         setClaimStatus(data);
       } else {
-        
+        await fetchClaimStatusFallback();
       }
     } catch (e) {
       console.warn('Fetch claim status API failed, using fallback', e);
-      
+      await fetchClaimStatusFallback();
     }
   };
 
