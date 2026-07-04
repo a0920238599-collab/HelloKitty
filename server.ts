@@ -10,6 +10,15 @@ const PORT = 3000;
 
 app.use(express.json());
 
+// Prevent caching for all API routes to ensure real-time synchronization
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+  next();
+});
+
 // Log incoming requests for Vercel debugging
 app.use((req, res, next) => {
   console.log(`[Vercel Serverless] ${req.method} ${req.url}`);

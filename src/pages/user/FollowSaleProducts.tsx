@@ -89,7 +89,7 @@ export const FollowSaleProducts: React.FC = () => {
         await fetchStatusFallback();
       }
     } catch (e) {
-      console.warn('Fetch claim status API failed, using fallback', e);
+      console.error('Fetch claim status API failed. If you are on Vercel, please ensure SUPABASE_SERVICE_ROLE_KEY is set in your Vercel Environment Variables.', e);
       await fetchStatusFallback();
     }
   };

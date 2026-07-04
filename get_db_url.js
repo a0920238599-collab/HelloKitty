@@ -1,0 +1,3 @@
+import dotenv from 'dotenv';
+dotenv.config();
+console.log(process.env.DATABASE_URL ? 'HAS DB URL' : 'NO DB URL');
