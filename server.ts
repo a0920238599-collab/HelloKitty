@@ -232,6 +232,7 @@ app.get("/api/audit_logs", requireAdmin, async (req, res) => {
 
 // Get user claim status
 app.get("/api/claim-status", async (req, res) => {
+  console.log("HIT /api/claim-status");
   if (!supabaseAdmin) return res.status(500).json({ error: "Supabase not initialized" });
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: "No authorization header" });
