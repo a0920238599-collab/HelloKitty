@@ -29,8 +29,20 @@ export const UserJudgmentsStats: React.FC = () => {
       });
       
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Failed to fetch user stats');
+        let errMessage = '获取数据失败';
+        try {
+          const errData = await response.json();
+          errMessage = errData.error || errMessage;
+        } catch (parseError) {
+          // If response is not JSON (e.g. Vercel's 500 HTML page)
+          const text = await response.text();
+          if (text.includes('A server error')) {
+            errMessage = '服务器超时或出现异常，请确保在 Supabase 中运行了对应的 SQL 指令。';
+          } else {
+            errMessage = text.substring(0, 100);
+          }
+        }
+        throw new Error(errMessage);
       }
 
       const data = await response.json();
