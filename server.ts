@@ -242,41 +242,19 @@ app.get("/api/audit_logs", requireAdmin, async (req, res) => {
 // Get User Judgment Stats (Admin only)
 app.get("/api/user-stats", requireAdmin, async (req, res) => {
   try {
-    // Try using the RPC first (which handles timezones and large datasets correctly)
     const { data: rpcData, error: rpcError } = await supabaseAdmin!.rpc('get_user_judgment_stats');
     
-    if (!rpcError && rpcData) {
-      return res.json(rpcData);
+    if (rpcError) {
+      return res.status(500).json({ 
+        error: `Supabase RPC Error: ${rpcError.message}. 请确保您在 Supabase 中执行了最新的 SQL 指令（创建 get_user_judgment_stats 函数）。` 
+      });
     }
 
-    // Fallback to JS calculation if RPC doesn't exist (has 1000 row limit issue)
-    const { data: users, error: usersError } = await supabaseAdmin!.from('profiles').select('id, username').eq('role', 'user');
-    if (usersError) throw usersError;
-    
-    // Convert to China time (UTC+8) for the fallback
-    const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Shanghai" }));
-    today.setHours(0, 0, 0, 0);
+    if (!rpcData) {
+      return res.json([]);
+    }
 
-    const { data: tasks, error: tasksError } = await supabaseAdmin!.from('task_assignments')
-      .select('assigned_user_id, submitted_at')
-      .eq('status', 'submitted');
-    if (tasksError) throw tasksError;
-      
-    const stats = (users || []).map(u => {
-      const userTasks = (tasks || []).filter(t => t.assigned_user_id === u.id);
-      const todayTasks = userTasks.filter(t => new Date(t.submitted_at) >= today);
-      return {
-        user_id: u.id,
-        username: u.username,
-        total_count: userTasks.length,
-        today_count: todayTasks.length
-      };
-    });
-    
-    // Sort by total_count descending
-    stats.sort((a, b) => b.total_count - a.total_count);
-
-    res.json(stats);
+    return res.json(rpcData);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

@@ -28,24 +28,34 @@ export const UserJudgmentsStats: React.FC = () => {
         }
       });
       
+      const text = await response.text();
+      
       if (!response.ok) {
         let errMessage = '获取数据失败';
         try {
-          const errData = await response.json();
+          const errData = JSON.parse(text);
           errMessage = errData.error || errMessage;
         } catch (parseError) {
           // If response is not JSON (e.g. Vercel's 500 HTML page)
-          const text = await response.text();
-          if (text.includes('A server error')) {
-            errMessage = '服务器超时或出现异常，请确保在 Supabase 中运行了对应的 SQL 指令。';
+          if (text.includes('A server error') || text.includes('FUNCTION_INVOCATION_TIMEOUT')) {
+            errMessage = '服务器超时或出现异常 (Vercel Server Error)，请确保在 Supabase 中运行了对应的 SQL 指令。';
           } else {
-            errMessage = text.substring(0, 100);
+            errMessage = `HTTP ${response.status}: ${text.substring(0, 100)}`;
           }
         }
         throw new Error(errMessage);
       }
 
-      const data = await response.json();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        if (text.includes('A server error') || text.includes('FUNCTION_INVOCATION_TIMEOUT')) {
+          throw new Error('服务器超时或出现异常 (Vercel Server Error)，请确保在 Supabase 中运行了对应的 SQL 指令。');
+        }
+        throw new Error(`返回数据格式错误: ${text.substring(0, 100)}`);
+      }
+      
       setStats(data);
     } catch (err: any) {
       console.error(err);
