@@ -245,8 +245,8 @@ app.get("/api/user-stats", requireAdmin, async (req, res) => {
     const { data: rpcData, error: rpcError } = await supabaseAdmin!.rpc('get_user_judgment_stats');
     
     if (rpcError) {
-      return res.status(500).json({ 
-        error: `Supabase RPC Error: ${rpcError.message}. 请确保您在 Supabase 中执行了最新的 SQL 指令（创建 get_user_judgment_stats 函数）。` 
+      return res.status(400).json({ 
+        error: `Supabase RPC Error: ${rpcError.message}. 请确保您在 Supabase 的 SQL Editor 中执行了创建 get_user_judgment_stats 函数的指令。` 
       });
     }
 
