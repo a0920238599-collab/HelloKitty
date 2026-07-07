@@ -33,16 +33,35 @@ export const ExportData: React.FC = () => {
   const handleExportFollowSale = async (type: 'csv' | 'xlsx') => {
     setExportingFollowSale(true);
     try {
-      const { data, error } = await supabase
-        .from('user_product_library')
-        .select(`
-          id,
-          received_at,
-          product:products (id, erp_sku, erp_image_url, ozon_sku, ozon_image_url, usd_price)
-        `)
-        .order('received_at', { ascending: false });
+      let data: any[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
+      while (hasMore) {
+        const { data: pageData, error } = await supabase
+          .from('user_product_library')
+          .select(`
+            id,
+            received_at,
+            product:products (id, erp_sku, erp_image_url, ozon_sku, ozon_image_url, usd_price)
+          `)
+          .order('received_at', { ascending: false })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+
+        if (error) throw error;
+        
+        if (pageData && pageData.length > 0) {
+          data = [...data, ...pageData];
+          if (pageData.length < pageSize) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
 
       if (!data || data.length === 0) {
         alert('没有跟卖产品可供导出');
@@ -101,27 +120,51 @@ export const ExportData: React.FC = () => {
     setExportingAll(true);
     try {
       // Get Tasks
-      const { data: tasks, error: tasksError } = await supabase
-        .from('task_assignments')
-        .select(`
-          status, judgment_result, claimed_at, submitted_at,
-          product:products (erp_sku, erp_image_url, ozon_sku, ozon_image_url, usd_price)
-        `);
-
-      if (tasksError) throw tasksError;
+      let tasks: any[] = [];
+      let pageTasks = 0;
+      let hasMoreTasks = true;
+      while (hasMoreTasks) {
+        const { data: pageData, error } = await supabase
+          .from('task_assignments')
+          .select(`
+            status, judgment_result, claimed_at, submitted_at,
+            product:products (erp_sku, erp_image_url, ozon_sku, ozon_image_url, usd_price)
+          `)
+          .range(pageTasks * 1000, (pageTasks + 1) * 1000 - 1);
+        if (error) throw error;
+        if (pageData && pageData.length > 0) {
+          tasks = [...tasks, ...pageData];
+          if (pageData.length < 1000) hasMoreTasks = false;
+          else pageTasks++;
+        } else {
+          hasMoreTasks = false;
+        }
+      }
 
       // Get Follow Sale
-      const { data: followSales, error: fsError } = await supabase
-        .from('user_product_library')
-        .select(`
-          id,
-          received_at,
-          product:products (id, erp_sku, erp_image_url, ozon_sku, ozon_image_url, usd_price)
-        `);
+      let followSales: any[] = [];
+      let pageFs = 0;
+      let hasMoreFs = true;
+      while (hasMoreFs) {
+        const { data: pageData, error } = await supabase
+          .from('user_product_library')
+          .select(`
+            id,
+            received_at,
+            product:products (id, erp_sku, erp_image_url, ozon_sku, ozon_image_url, usd_price)
+          `)
+          .range(pageFs * 1000, (pageFs + 1) * 1000 - 1);
+        if (error) throw error;
+        if (pageData && pageData.length > 0) {
+          followSales = [...followSales, ...pageData];
+          if (pageData.length < 1000) hasMoreFs = false;
+          else pageFs++;
+        } else {
+          hasMoreFs = false;
+        }
+      }
 
-      if (fsError) throw fsError;
-
-      let finalFsData = followSales || [];
+      let finalFsData = followSales;
       if (finalFsData.length > 0) {
         try {
           const { data: { session } } = await supabase.auth.getSession();

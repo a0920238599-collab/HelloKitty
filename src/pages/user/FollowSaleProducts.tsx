@@ -238,25 +238,40 @@ export const FollowSaleProducts: React.FC = () => {
   const handleExport = async () => {
     setExporting(true);
     try {
-      let query = supabase
-        .from('user_product_library')
-        .select(`
-          *,
-          product:products (erp_sku, erp_image_url, ozon_sku, ozon_image_url, usd_price)
-        `);
+      let finalData: any[] = [];
+      let page = 0;
+      let hasMore = true;
 
-      if (startDate) {
-        query = query.gte('received_at', `${startDate}T00:00:00.000Z`);
+      while (hasMore) {
+        let query = supabase
+          .from('user_product_library')
+          .select(`
+            *,
+            product:products (erp_sku, erp_image_url, ozon_sku, ozon_image_url, usd_price)
+          `)
+          .order('received_at', { ascending: false })
+          .range(page * 1000, (page + 1) * 1000 - 1);
+
+        if (startDate) {
+          query = query.gte('received_at', `${startDate}T00:00:00.000Z`);
+        }
+        if (endDate) {
+          query = query.lte('received_at', `${endDate}T23:59:59.999Z`);
+        }
+
+        const { data, error } = await query;
+
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          finalData = [...finalData, ...data];
+          if (data.length < 1000) hasMore = false;
+          else page++;
+        } else {
+          hasMore = false;
+        }
       }
-      if (endDate) {
-        query = query.lte('received_at', `${endDate}T23:59:59.999Z`);
-      }
 
-      const { data, error } = await query.order('received_at', { ascending: false });
-
-      if (error) throw error;
-      
-      let finalData = data || [];
       if (finalData.length > 0) {
         try {
           const { data: { session } } = await supabase.auth.getSession();

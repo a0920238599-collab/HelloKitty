@@ -32,9 +32,11 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone." ON public.profiles;
 CREATE POLICY "Public profiles are viewable by everyone." ON public.profiles
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Users can update own profile." ON public.profiles;
 CREATE POLICY "Users can update own profile." ON public.profiles
   FOR UPDATE USING (auth.uid() = id);
 
@@ -317,14 +319,17 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- System Settings
+DROP POLICY IF EXISTS "Admins can manage system_settings" ON public.system_settings;
 CREATE POLICY "Admins can manage system_settings" ON public.system_settings
   USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 -- Products
+DROP POLICY IF EXISTS "Admins can manage products" ON public.products;
 CREATE POLICY "Admins can manage products" ON public.products
   USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 -- 普通用户只能读取自己任务涉及的产品
+DROP POLICY IF EXISTS "Users can read products related to their tasks" ON public.products;
 CREATE POLICY "Users can read products related to their tasks" ON public.products
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM public.task_assignments WHERE product_id = products.id AND assigned_user_id = auth.uid())
@@ -332,32 +337,40 @@ CREATE POLICY "Users can read products related to their tasks" ON public.product
   );
 
 -- Task Assignments
+DROP POLICY IF EXISTS "Admins can manage task_assignments" ON public.task_assignments;
 CREATE POLICY "Admins can manage task_assignments" ON public.task_assignments
   USING (public.is_admin()) WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Users can read and update own task_assignments" ON public.task_assignments;
 CREATE POLICY "Users can read and update own task_assignments" ON public.task_assignments
   FOR SELECT USING (assigned_user_id = auth.uid());
   
 -- 用户更新任务 (仅限保存草稿，提交使用 RPC 函数确保原子性，但为了前端直接 update草稿，可以开放 UPDATE 权限给属于自己的 claimed/draft 任务)
+DROP POLICY IF EXISTS "Users can update own unsubmitted tasks" ON public.task_assignments;
 CREATE POLICY "Users can update own unsubmitted tasks" ON public.task_assignments
   FOR UPDATE USING (assigned_user_id = auth.uid() AND status IN ('claimed', 'draft'))
   WITH CHECK (assigned_user_id = auth.uid() AND status IN ('claimed', 'draft'));
 
 -- User Product Library
+DROP POLICY IF EXISTS "Admins can manage user_product_library" ON public.user_product_library;
 CREATE POLICY "Admins can manage user_product_library" ON public.user_product_library
   USING (public.is_admin()) WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Users can read own user_product_library" ON public.user_product_library;
 CREATE POLICY "Users can read own user_product_library" ON public.user_product_library
   FOR SELECT USING (user_id = auth.uid());
 
 -- Follow Sale Export Batches
+DROP POLICY IF EXISTS "Admins can view follow_sale_export_batches" ON public.follow_sale_export_batches;
 CREATE POLICY "Admins can view follow_sale_export_batches" ON public.follow_sale_export_batches
   FOR SELECT USING (public.is_admin());
 
+DROP POLICY IF EXISTS "Users can read own follow_sale_export_batches" ON public.follow_sale_export_batches;
 CREATE POLICY "Users can read own follow_sale_export_batches" ON public.follow_sale_export_batches
   FOR SELECT USING (user_id = auth.uid());
 
 -- Import Batches
+DROP POLICY IF EXISTS "Admins can manage import_batches" ON public.import_batches;
 CREATE POLICY "Admins can manage import_batches" ON public.import_batches
   USING (public.is_admin()) WITH CHECK (public.is_admin());
 
