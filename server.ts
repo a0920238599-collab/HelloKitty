@@ -242,19 +242,51 @@ app.get("/api/audit_logs", requireAdmin, async (req, res) => {
 // Get User Judgment Stats (Admin only)
 app.get("/api/user-stats", requireAdmin, async (req, res) => {
   try {
-    const { data: rpcData, error: rpcError } = await supabaseAdmin!.rpc('get_user_judgment_stats');
+    if (!supabaseAdmin) throw new Error("Supabase Admin client not initialized");
     
-    if (rpcError) {
-      return res.status(400).json({ 
-        error: `Supabase RPC Error: ${rpcError.message}. 请确保您在 Supabase 的 SQL Editor 中执行了创建 get_user_judgment_stats 函数的指令。` 
+    // Fetch all users
+    const { data: users, error: usersError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, username')
+      .eq('role', 'user');
+
+    if (usersError) throw usersError;
+
+    // Fetch all submitted tasks
+    const { data: tasks, error: tasksError } = await supabaseAdmin
+      .from('task_assignments')
+      .select('assigned_user_id, status, submitted_at')
+      .eq('status', 'submitted');
+
+    if (tasksError) throw tasksError;
+
+    // Calculate start of day in Shanghai time zone for today
+    const now = new Date();
+    // Assuming we want UTC date string for simplicity or keep local logic:
+    const today = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
+    today.setHours(0, 0, 0, 0);
+    const todayStart = today.getTime();
+
+    const stats = (users || []).map(user => {
+      const userTasks = (tasks || []).filter(t => t.assigned_user_id === user.id);
+      
+      const todayTasks = userTasks.filter(t => {
+        if (!t.submitted_at) return false;
+        const submittedDate = new Date(t.submitted_at).getTime();
+        return submittedDate >= todayStart;
       });
-    }
 
-    if (!rpcData) {
-      return res.json([]);
-    }
+      return {
+        user_id: user.id,
+        username: user.username,
+        today_count: todayTasks.length,
+        total_count: userTasks.length
+      };
+    });
 
-    return res.json(rpcData);
+    stats.sort((a, b) => b.total_count - a.total_count);
+
+    return res.json(stats);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
