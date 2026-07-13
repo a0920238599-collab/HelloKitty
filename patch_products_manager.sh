@@ -1,0 +1,1 @@
+sed -i 's/alert(`已成功判定为“${result === '\''yes'\'' ? '\''是'\'' : '\''否'\''}”`);/console.log("Success RPC"); alert(`已成功判定为“${result === '\''yes'\'' ? '\''是'\'' : '\''否'\''}”`);/g' src/pages/admin/ProductsManager.tsx
