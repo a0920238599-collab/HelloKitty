@@ -138,11 +138,16 @@ export const ProductsManager: React.FC = () => {
       const ozon_image_url = getVal(['ozon图片链接', 'ozon图片', 'ozon_image', 'ozon_image_url']);
       const priceStr = getVal(['产品美元价格', '美元价格', 'price', 'usd_price', 'usd price']);
       const usd_price = priceStr ? parseFloat(priceStr) : 0;
-      const statusStr = getVal(['判断状态', '状态', 'judgment_status', 'status']);
+      const statusStr = getVal(['判断状态', '判定状态', '状态', 'judgment_status', 'status']);
 
       let judgment_status = 'unjudged';
       if (statusStr === '是' || statusStr.toLowerCase() === 'yes') judgment_status = 'yes';
       else if (statusStr === '否' || statusStr.toLowerCase() === 'no') judgment_status = 'no';
+      else if (statusStr === '存疑' || statusStr.toLowerCase() === 'disputed') judgment_status = 'disputed';
+
+      const isBatchUpdate = statusStr === '是' || statusStr === '否' || statusStr === '存疑' || 
+                           statusStr.toLowerCase() === 'yes' || statusStr.toLowerCase() === 'no' || 
+                           statusStr.toLowerCase() === 'disputed';
 
       if (!erp_sku || !ozon_sku || !erp_image_url || !ozon_image_url) {
         failed++;
@@ -161,46 +166,50 @@ export const ProductsManager: React.FC = () => {
       }
 
       try {
-        const { error } = await supabase.from('products').insert({
-          erp_sku,
-          erp_image_url,
-          ozon_sku,
-          ozon_image_url,
-          usd_price,
-          judgment_status,
-          created_by: user?.id,
-          judged_by: judgment_status !== 'unjudged' ? user?.id : null,
-          judged_at: judgment_status !== 'unjudged' ? new Date().toISOString() : null,
-          import_batch_id: batchId
-        });
-
-        if (error) {
-          if (error.code === '23505') { // Unique violation
-            if (judgment_status !== 'unjudged') {
-              // Admin batch update, update the existing record
-              const { error: updateError } = await supabase.from('products').update({
-                erp_image_url,
-                ozon_image_url,
-                usd_price,
-                judgment_status,
-                judged_by: user?.id,
-                judged_at: new Date().toISOString(),
-                import_batch_id: batchId
-              }).match({ erp_sku, ozon_sku });
-              
-              if (updateError) {
-                failed++;
-              } else {
-                success++;
-              }
-            } else {
-              skipped++;
-            }
-          } else {
+        if (isBatchUpdate) {
+          // Admin batch processing: Upsert (overwrite if exists) without duplicate check
+          const { error } = await supabase.from('products').upsert({
+            erp_sku,
+            erp_image_url,
+            ozon_sku,
+            ozon_image_url,
+            usd_price,
+            judgment_status,
+            created_by: user?.id,
+            judged_by: judgment_status !== 'unjudged' ? user?.id : null,
+            judged_at: judgment_status !== 'unjudged' ? new Date().toISOString() : null,
+            import_batch_id: batchId
+          }, { onConflict: 'erp_sku,ozon_sku' });
+          
+          if (error) {
+            console.error('Upsert failed:', error);
             failed++;
+          } else {
+            success++;
           }
         } else {
-          success++;
+          // Normal upload: Insert and skip on duplicate
+          const { error } = await supabase.from('products').insert({
+            erp_sku,
+            erp_image_url,
+            ozon_sku,
+            ozon_image_url,
+            usd_price,
+            judgment_status,
+            created_by: user?.id,
+            import_batch_id: batchId
+          });
+
+          if (error) {
+            if (error.code === '23505' || error.message?.includes('duplicate')) { 
+              skipped++;
+            } else {
+              console.error('Insert failed:', error);
+              failed++;
+            }
+          } else {
+            success++;
+          }
         }
       } catch (err) {
         failed++;
@@ -276,7 +285,7 @@ export const ProductsManager: React.FC = () => {
         'Ozon SKU': item.ozon_sku,
         'Ozon 图片链接': item.ozon_image_url,
         '美元价格': item.usd_price,
-        '判断状态': item.judgment_status === 'yes' ? '是' : item.judgment_status === 'no' ? '否' : '未判断',
+        '判断状态': item.judgment_status === 'yes' ? '是' : item.judgment_status === 'no' ? '否' : item.judgment_status === 'disputed' ? '存疑' : '未判断',
         '判断人': item.judged_profile?.username || '',
         '判断时间': item.judged_at ? new Date(item.judged_at).toLocaleString('zh-CN') : '',
         '创建时间': item.created_at ? new Date(item.created_at).toLocaleString('zh-CN') : ''
