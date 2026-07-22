@@ -176,7 +176,26 @@ export const ProductsManager: React.FC = () => {
 
         if (error) {
           if (error.code === '23505') { // Unique violation
-            skipped++;
+            if (judgment_status !== 'unjudged') {
+              // Admin batch update, update the existing record
+              const { error: updateError } = await supabase.from('products').update({
+                erp_image_url,
+                ozon_image_url,
+                usd_price,
+                judgment_status,
+                judged_by: user?.id,
+                judged_at: new Date().toISOString(),
+                import_batch_id: batchId
+              }).match({ erp_sku, ozon_sku });
+              
+              if (updateError) {
+                failed++;
+              } else {
+                success++;
+              }
+            } else {
+              skipped++;
+            }
           } else {
             failed++;
           }
@@ -287,18 +306,20 @@ export const ProductsManager: React.FC = () => {
   };
 
   const handleResolveDisputed = async (id: string, result: 'yes' | 'no') => {
-    try {
-      const { error } = await supabase.rpc('resolve_disputed_product', {
-        p_product_id: id,
-        p_result: result
-      });
-      
-      if (error) throw error;
-      
-      console.log("Success RPC");
-      fetchProducts(false);
-    } catch (err: any) {
-      console.error('判定失败: ' + err.message);
+    if (confirm(`确定要将该存疑产品判定为“${result === 'yes' ? '是' : '否'}”吗？`)) {
+      try {
+        const { error } = await supabase.rpc('resolve_disputed_product', {
+          p_product_id: id,
+          p_result: result
+        });
+        
+        if (error) throw error;
+        
+        alert(`已成功判定为“${result === 'yes' ? '是' : '否'}”`);
+        fetchProducts(false);
+      } catch (err: any) {
+        alert('判定失败: ' + err.message);
+      }
     }
   };
 
